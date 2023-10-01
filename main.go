@@ -73,7 +73,7 @@ func main() {
 		infoLogger.Error(err, "unable to load controller config")
 		os.Exit(1)
 	}
-	ctrl.SetLogger(getLoggerWithLogLevel(controllerCFG.LogLevel))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&controllerCFG.LogConfig)))
 
 	cloud, err := aws.NewCloud(controllerCFG.AWSConfig, metrics.Registry)
 	if err != nil {
@@ -199,7 +199,7 @@ func loadControllerConfig() (config.ControllerConfig, error) {
 	return controllerCFG, nil
 }
 
-// getLoggerWithLogLevel returns logger with specific log level.
+// getLoggerWithLogLevel returns logger with specific log level and format.
 func getLoggerWithLogLevel(logLevel string) logr.Logger {
 	var zapLevel zapraw.AtomicLevel
 	switch logLevel {

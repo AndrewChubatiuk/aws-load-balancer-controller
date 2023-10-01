@@ -1,6 +1,7 @@
 package config
 
 import (
+	"flag"
 	"strings"
 	"time"
 
@@ -10,10 +11,10 @@ import (
 	"sigs.k8s.io/aws-load-balancer-controller/pkg/aws"
 	"sigs.k8s.io/aws-load-balancer-controller/pkg/inject"
 	"sigs.k8s.io/aws-load-balancer-controller/pkg/model/elbv2"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 const (
-	flagLogLevel                                     = "log-level"
 	flagK8sClusterName                               = "cluster-name"
 	flagDefaultTags                                  = "default-tags"
 	flagDefaultTargetType                            = "default-target-type"
@@ -27,7 +28,6 @@ const (
 	flagBackendSecurityGroup                         = "backend-security-group"
 	flagEnableEndpointSlices                         = "enable-endpoint-slices"
 	flagDisableRestrictedSGRules                     = "disable-restricted-sg-rules"
-	defaultLogLevel                                  = "info"
 	defaultMaxConcurrentReconciles                   = 3
 	defaultMaxExponentialBackoffDelay                = time.Second * 1000
 	defaultSSLPolicy                                 = "ELBSecurityPolicy-2016-08"
@@ -49,8 +49,8 @@ var (
 
 // ControllerConfig contains the controller configuration
 type ControllerConfig struct {
-	// Log level for the controller logs
-	LogLevel string
+	// Logger config
+	LogConfig zap.Options
 	// Name of the Kubernetes cluster
 	ClusterName string
 	// Configurations for AWS.
@@ -107,8 +107,9 @@ type ControllerConfig struct {
 
 // BindFlags binds the command line flags to the fields in the config object
 func (cfg *ControllerConfig) BindFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&cfg.LogLevel, flagLogLevel, defaultLogLevel,
-		"Set the controller log level - info(default), debug")
+	logFs := flag.NewFlagSet("", flag.ExitOnError)
+	cfg.LogConfig.BindFlags(logFs)
+	fs.AddGoFlagSet(logFs)
 	fs.StringVar(&cfg.ClusterName, flagK8sClusterName, "", "Kubernetes cluster name")
 	fs.StringToStringVar(&cfg.DefaultTags, flagDefaultTags, nil,
 		"Default AWS Tags that will be applied to all AWS resources managed by this controller")
@@ -149,7 +150,6 @@ func (cfg *ControllerConfig) Validate() error {
 	if len(cfg.ClusterName) == 0 {
 		return errors.New("kubernetes cluster name must be specified")
 	}
-
 	if err := cfg.validateDefaultTagsCollisionWithTrackingTags(); err != nil {
 		return err
 	}
